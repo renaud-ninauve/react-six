@@ -1,17 +1,41 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
-import App from './App';
-import * as serviceWorker from './serviceWorker';
+
+class Card extends React.Component {
+  render() {
+    return (
+      <div className="card">
+        <div className="card-value">{this.props.value}</div>
+        <div className="card-cows">{'*'.repeat(this.props.cows)}</div>
+      </div>
+    );
+  }
+}
+
+class Deck extends React.Component {
+    render() {
+      let cards = this.props.cards.map(card => (<Card value={card.value} cows={card.cows}/>));
+      return (
+        <div className="deck">
+          {cards}
+        </div>
+      );
+    }
+}
+
+class Game extends React.Component {
+  render() {
+    let cards = [{value: 3, cows: 6}, {value: 3, cows: 6}, {value: 3, cows: 6}];
+    return (
+        <Deck cards={cards} />
+    );
+  }
+}
+
+// ========================================
 
 ReactDOM.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
+  <Game />,
   document.getElementById('root')
 );
-
-// If you want your app to work offline and load faster, you can change
-// unregister() to register() below. Note this comes with some pitfalls.
-// Learn more about service workers: https://bit.ly/CRA-PWA
-serviceWorker.unregister();
