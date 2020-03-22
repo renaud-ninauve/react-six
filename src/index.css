@@ -1,6 +1,13 @@
-.deck {
+.player-deck {
   display: flex;
   margin: 10px;
+  background-color: green;
+}
+
+.card-mat {
+  display: flex;
+  margin: 10px;
+  background-color: cyan;
 }
 
 .card {
