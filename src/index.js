@@ -28,7 +28,7 @@ class PlayerDeck extends React.Component {
 class CardStack extends React.Component {
   render() {
     let cards = this.props.cards.map(
-      (card, i) => (<Card value={card.value} cows={card.cows} key={i}/>));
+      (card, i) => (<Card value={card.value} cows={card.cows} key={i} onClick={() => this.props.onClick()}/>));
 
     return (
       <div className="card-stack">
@@ -41,7 +41,7 @@ class CardStack extends React.Component {
 class CardMat extends React.Component {
   render() {
     let cardStacks = this.props.cardMat.map(
-      (cards, i) => (<CardStack cards={cards} key={i}/>));
+      (cards, i) => (<CardStack cards={cards} key={i} onClick={() => this.props.onClick(i)}/>));
     return (
       <div className="card-mat">
         {cardStacks}
@@ -55,14 +55,14 @@ class SelectedCards extends React.Component {
       let selectedCards = this.props.selectedCards.map(
         (selectedCard, i) =>
           (
-            <div class="selected-card">
+            <div className="selected-card" key={i}>
               <p>{selectedCard.actor}</p>
-              <Card value={selectedCard.card.value} cows={selectedCard.card.cows}/>)
+              <Card value={selectedCard.card.value} cows={selectedCard.card.cows}/>
             </div>
           )
         );
         return (
-          <div class="selected-cards">
+          <div className="selected-cards">
             {selectedCards}
           </div>
         );
@@ -73,7 +73,6 @@ class Game extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      status: 'select_cards',
       player: props.distribution.player,
       cpu1: props.distribution.cpu1,
       cpu2: props.distribution.cpu2,
@@ -92,41 +91,102 @@ class Game extends React.Component {
     return 0;
   }
   excludeIndex(excluded) {
-    return (e, i) => i != excluded;
+    return (e, i) => i !== excluded;
+  }
+  selectStack(index) {
+    console.log('selectStack ' + index);
   }
   selectCards(playerSelectedIndex) {
+    if (this.state.selectedCards.length > 0) {
+      return;
+    }
     let cardsCount = this.state.player.length;
     let cpu1Index = Math.floor(Math.random() * cardsCount);
     let cpu2Index = Math.floor(Math.random() * cardsCount);
+    let selectedCards =
+    [
+        {
+          card: this.state.player[playerSelectedIndex],
+          actor: 'player'
+        },
+        {
+          card: this.state.cpu1[cpu1Index],
+          actor: 'cpu1'
+        },
+        {
+          card: this.state.cpu2[cpu2Index],
+          actor: 'cpu2'
+        }
+    ].sort((a, b) => this.compareCards(a.card, b.card));
 
     this.setState({
-      status: 'show_selection',
       player: this.state.player.filter(this.excludeIndex(playerSelectedIndex)),
       cpu1: this.state.cpu1.filter(this.excludeIndex(cpu1Index)),
       cpu2: this.state.cpu2.filter(this.excludeIndex(cpu2Index)),
       cardMat: this.state.cardMat,
-      selectedCards: [
-          {
-            card: this.state.player[playerSelectedIndex],
-            actor: 'player'
-          },
-          {
-            card: this.state.cpu1[cpu1Index],
-            actor: 'cpu1'
-          },
-          {
-            card: this.state.cpu2[cpu2Index],
-            actor: 'cpu2'
-          }
-      ],
+      selectedCards: selectedCards,
       results: this.state.results
     });
   }
+  continueToDispatchSelectedCards() {
+    if (this.state.selectedCards.length === 0) {
+      return;
+    }
+    let selectedCard = this.state.selectedCards[0];
+    let stacks = [...this.state.cardMat];
+    let targetStacks = stacks
+      .filter(arr => arr[arr.length-1].value < selectedCard.card.value)
+      .sort((a, b) => this.compareCards(a[a.length-1], b[b.length-1]));
+    if (targetStacks.length > 0) {
+      let targetStack = targetStacks[targetStacks.length-1];
+      if (targetStack.length < 5) {
+        targetStack
+          .push(selectedCard.card);
+      } else {
+        targetStack
+          .splice(0, targetStack.length, selectedCard.card);
+      }
+      this.setState({
+        ...this.state,
+        selectedCards: this.state.selectedCards.slice(1),
+        cardMat: stacks});
+    } else if (selectedCard.actor !== 'player') {
+      let selectedStack = Math.floor(Math.random() * 3);
+      let cardMat = [...this.state.cardMat];
+      cardMat[selectedStack] = [selectedCard.card];
+      this.setState({
+        ...this.state,
+        selectedCards: this.state.selectedCards.slice(1),
+        cardMat: cardMat
+      });
+    }
+  }
+  selectStack(i) {
+    if (this.state.selectedCards.length <= 0 || this.state.selectedCards[0].actor !== 'player') {
+      return;
+    }
+    let selectedCard = this.state.selectedCards[0];
+    if (this.state.cardMat.some(arr => arr[arr.length-1].value < selectedCard.card.value)) {
+      return;
+    }
+    let cardMat = [...this.state.cardMat];
+    cardMat[i] = [selectedCard.card];
+    this.setState({
+      ...this.state,
+      selectedCards: this.state.selectedCards.slice(1),
+      cardMat: cardMat
+    });
+  }
   render() {
+    let selectedCards = this.state.selectedCards.length > 0
+      ? (<SelectedCards selectedCards={this.state.selectedCards}/>) : '';
     return (
         <div>
-          <CardMat cardMat={this.state.cardMat}/>
+          <h2>{this.state.status}</h2>
+          <CardMat cardMat={this.state.cardMat} onClick={(i) => this.selectStack(i)}/>
           <PlayerDeck cards={this.state.player} onClick={(i) => this.selectCards(i)}/>
+          {selectedCards}
+          <button onClick={()=>this.continueToDispatchSelectedCards()}>continue</button>
         </div>
     );
   }
