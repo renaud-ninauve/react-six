@@ -10,6 +10,22 @@
   background-color: cyan;
 }
 
+.scores {
+  display: table;
+  border-collapse: collapse;
+  padding: 10px;
+}
+.scores > div {
+  display: table-row;
+}
+.scores > div > div {
+  display: table-cell;
+  padding: 5px;
+  width: 100px;
+  text-align: center;
+  border: 1px solid black;
+}
+
 .card {
   width: 100px;
   border: solid black 1px;

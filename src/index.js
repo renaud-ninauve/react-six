@@ -69,6 +69,30 @@ class SelectedCards extends React.Component {
     }
 }
 
+class Scores extends React.Component {
+  render() {
+    let scores = this.props.scores;
+    return (
+      <div className="scores">
+        <div>
+        <div>
+          <h2>player</h2>
+          <p>{scores.player}</p>
+        </div>
+        <div>
+          <h2>cpu1</h2>
+          <p>{scores.cpu1}</p>
+        </div>
+        <div>
+          <h2>cpu2</h2>
+          <p>{scores.cpu2}</p>
+        </div>
+        </div>
+      </div>
+    );
+  }
+}
+
 class Game extends React.Component {
   constructor(props) {
     super(props);
@@ -78,7 +102,7 @@ class Game extends React.Component {
       cpu2: props.distribution.cpu2,
       cardMat: props.distribution.cardMat,
       selectedCards: [],
-      results: { player: [], cpu1: [], cpu2: []}
+      scores: { player: 0, cpu1: 0, cpu2: 0}
     };
   }
   compareCards(a , b) {
@@ -125,16 +149,17 @@ class Game extends React.Component {
       cpu2: this.state.cpu2.filter(this.excludeIndex(cpu2Index)),
       cardMat: this.state.cardMat,
       selectedCards: selectedCards,
-      results: this.state.results
+      scores: this.state.scores
     });
   }
   continueToDispatchSelectedCards() {
     if (this.state.selectedCards.length === 0) {
       return;
     }
+    let scores = {...this.state.scores};
     let selectedCard = this.state.selectedCards[0];
-    let stacks = [...this.state.cardMat];
-    let targetStacks = stacks
+    let cardMat = [...this.state.cardMat];
+    let targetStacks = cardMat
       .filter(arr => arr[arr.length-1].value < selectedCard.card.value)
       .sort((a, b) => this.compareCards(a[a.length-1], b[b.length-1]));
     if (targetStacks.length > 0) {
@@ -143,21 +168,29 @@ class Game extends React.Component {
         targetStack
           .push(selectedCard.card);
       } else {
+        let cows = targetStack
+          .reduce((acc, card) => acc+card.cows, 0);
+        scores[selectedCard.actor] = scores[selectedCard.actor] + cows;
         targetStack
           .splice(0, targetStack.length, selectedCard.card);
       }
       this.setState({
         ...this.state,
         selectedCards: this.state.selectedCards.slice(1),
-        cardMat: stacks});
+        cardMat,
+        scores});
     } else if (selectedCard.actor !== 'player') {
-      let selectedStack = Math.floor(Math.random() * 3);
+      let selectedStackIndex = Math.floor(Math.random() * 3);
+      let cows = this.state.cardMat[selectedStackIndex]
+        .reduce((acc, card) => acc+card.cows, 0);
+      scores[selectedCard.actor] = scores[selectedCard.actor] + cows;
       let cardMat = [...this.state.cardMat];
-      cardMat[selectedStack] = [selectedCard.card];
+      cardMat[selectedStackIndex] = [selectedCard.card];
       this.setState({
         ...this.state,
         selectedCards: this.state.selectedCards.slice(1),
-        cardMat: cardMat
+        cardMat,
+        scores
       });
     }
   }
@@ -169,12 +202,17 @@ class Game extends React.Component {
     if (this.state.cardMat.some(arr => arr[arr.length-1].value < selectedCard.card.value)) {
       return;
     }
+    let scores = {...this.state.scores};
+    let cows = this.state.cardMat[i]
+      .reduce((acc, card) => acc+card.cows, 0);
+    scores[selectedCard.actor] = scores[selectedCard.actor] + cows;
     let cardMat = [...this.state.cardMat];
     cardMat[i] = [selectedCard.card];
     this.setState({
       ...this.state,
       selectedCards: this.state.selectedCards.slice(1),
-      cardMat: cardMat
+      cardMat,
+      scores
     });
   }
   render() {
@@ -182,7 +220,7 @@ class Game extends React.Component {
       ? (<SelectedCards selectedCards={this.state.selectedCards}/>) : '';
     return (
         <div>
-          <h2>{this.state.status}</h2>
+          <Scores scores={this.state.scores}/>
           <CardMat cardMat={this.state.cardMat} onClick={(i) => this.selectStack(i)}/>
           <PlayerDeck cards={this.state.player} onClick={(i) => this.selectCards(i)}/>
           {selectedCards}
