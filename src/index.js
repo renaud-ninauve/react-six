@@ -2,95 +2,82 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
 
-class Card extends React.Component {
-  render() {
+function Card({value, cows, onClick=()=>{}}) {
+  return (
+    <div className="card" onClick={onClick}>
+      <div className="card-value">{value}</div>
+      <div className="card-cows">{'*'.repeat(cows)}</div>
+    </div>
+  );
+}
+
+function PlayerDeck({cards, onClick=(i)=>{}}) {
+  let cardComponents = cards.map(
+    (card, i) => (<Card value={card.value} cows={card.cows} key={i} onClick={() => onClick(i)}/>));
+  return (
+    <div className="player-deck">
+      {cardComponents}
+    </div>
+  );
+}
+
+function CardStack({cards, onClick=(i)=>{}}) {
+  let cardComponents = cards.map(
+    (card, i) => (<Card value={card.value} cows={card.cows} key={i} onClick={() => onClick(i)}/>));
+
+  return (
+    <div className="card-stack">
+      {cardComponents}
+    </div>
+  );
+}
+
+function CardMat({cardMat, onClick=(i)=>{}}) {
+  let stacks = cardMat.map(
+    (cards, i) => (<CardStack cards={cards} key={i} onClick={() => onClick(i)}/>));
+  return (
+    <div className="card-mat">
+      {stacks}
+    </div>
+  );
+}
+
+function SelectedCards({selectedCards}) {
+  let components = selectedCards.map(
+    (selectedCard, i) =>
+      (
+        <div className="selected-card" key={i}>
+          <p>{selectedCard.actor}</p>
+          <Card value={selectedCard.card.value} cows={selectedCard.card.cows}/>
+        </div>
+      )
+    );
     return (
-      <div className="card" onClick={this.props.onClick ? () => this.props.onClick() : () => {}}>
-        <div className="card-value">{this.props.value}</div>
-        <div className="card-cows">{'*'.repeat(this.props.cows)}</div>
+      <div className="selected-cards">
+        {components}
       </div>
     );
-  }
 }
 
-class PlayerDeck extends React.Component {
-    render() {
-      let cards = this.props.cards.map(
-        (card, i) => (<Card value={card.value} cows={card.cows} key={i} onClick={() => this.props.onClick(i)}/>));
-      return (
-        <div className="player-deck">
-          {cards}
-        </div>
-      );
-    }
-}
-
-class CardStack extends React.Component {
-  render() {
-    let cards = this.props.cards.map(
-      (card, i) => (<Card value={card.value} cows={card.cows} key={i} onClick={() => this.props.onClick()}/>));
-
-    return (
-      <div className="card-stack">
-        {cards}
+function Scores({scores}) {  
+  return (
+    <div className="scores">
+      <div>
+      <div>
+        <h2>player</h2>
+        <p>{scores.player}</p>
       </div>
-    );
-  }
-}
-
-class CardMat extends React.Component {
-  render() {
-    let cardStacks = this.props.cardMat.map(
-      (cards, i) => (<CardStack cards={cards} key={i} onClick={() => this.props.onClick(i)}/>));
-    return (
-      <div className="card-mat">
-        {cardStacks}
+      <div>
+        <h2>cpu1</h2>
+        <p>{scores.cpu1}</p>
       </div>
-    );
-  }
-}
-
-class SelectedCards extends React.Component {
-    render() {
-      let selectedCards = this.props.selectedCards.map(
-        (selectedCard, i) =>
-          (
-            <div className="selected-card" key={i}>
-              <p>{selectedCard.actor}</p>
-              <Card value={selectedCard.card.value} cows={selectedCard.card.cows}/>
-            </div>
-          )
-        );
-        return (
-          <div className="selected-cards">
-            {selectedCards}
-          </div>
-        );
-    }
-}
-
-class Scores extends React.Component {
-  render() {
-    let scores = this.props.scores;
-    return (
-      <div className="scores">
-        <div>
-        <div>
-          <h2>player</h2>
-          <p>{scores.player}</p>
-        </div>
-        <div>
-          <h2>cpu1</h2>
-          <p>{scores.cpu1}</p>
-        </div>
-        <div>
-          <h2>cpu2</h2>
-          <p>{scores.cpu2}</p>
-        </div>
-        </div>
+      <div>
+        <h2>cpu2</h2>
+        <p>{scores.cpu2}</p>
       </div>
-    );
-  }
+      </div>
+    </div>
+  );
 }
 
 class Game extends React.Component {
