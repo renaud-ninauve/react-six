@@ -1,37 +1,93 @@
 //import * as WhoTakes6 from "./whotakes6.mjs";
 const whotakes6 = require('./whotakes6');
 
-test('distribute cards', () => {
-  const {decks: actualDecks, cardMat: actualCardMat} =
-    whotakes6.distributeCards();
+test('start', () => {
+  const {players, cows} = whotakes6.start(['p1', 'p2', 'p3']);
 
-  expect(actualDecks.length).toEqual(3);
-  expect(actualDecks.every(({owner, cards}) => cards.length === 10));
+  expect(cows).toEqual(new Map([
+    ['p1', 0],
+    ['p2', 0],
+    ['p3', 0]
+  ]));
+});
+
+test('distribute cards', () => {
+  const state = {
+    players: ['p1', 'p2', 'p3'],
+    nextAction: {type: 'DISTRIBUTE_CARDS'}
+  };
+  const shuffledCards = Array(34).fill(1);
+  const {hands: actualHands, cardMat: actualCardMat} =
+    whotakes6.distributeCards(state, shuffledCards);
+
+  expect(actualHands.get('p1').length).toEqual(10);
+  expect(actualHands.get('p2').length).toEqual(10);
+  expect(actualHands.get('p3').length).toEqual(10);
   expect(actualCardMat.length).toEqual(4);
   expect(actualCardMat.every(stack => stack.length === 1));
 });
 
-test('choose cards', () => {
-  const decks = [
-    {owner: 'player', cards: [{value: 55}, {value: 44}]},
-    {owner: 'cpu1', cards: [{value: 56}, {value: 42}]},
-    {owner: 'cpu2', cards: [{value: 66}, {value: 57}]}
-  ];
-  const playerChoice = 0;
-  const cpuStrategy = cards => 1;
-  const {chosenCards: actualChosenCards, decks: actualDecks} =
-    whotakes6.chooseCards({decks}, playerChoice, cpuStrategy);
-
-  expect(actualChosenCards.length).toEqual(3);
-  expect(actualChosenCards).toEqual([
-    {owner: 'cpu1', card: {value: 42}},
-    {owner: 'player', card: {value: 55}},
-    {owner: 'cpu2', card: {value: 57}}
+test('play cards with select stack', () => {
+  const players = ['p1', 'p2', 'p3'];
+  const hands = new Map([
+    ['p1', [55, 44]],
+    ['p2', [56, 42]],
+    ['p3', [66, 57]]
   ]);
-  expect(actualDecks.find(({owner}) => owner == 'player'))
-    .toEqual({owner: 'player', cards: [{value: 44}]});
-  expect(actualDecks.find(({owner}) => owner == 'cpu1'))
-    .toEqual({owner: 'cpu1', cards: [{value: 56}]});
-  expect(actualDecks.find(({owner}) => owner == 'cpu2'))
-    .toEqual({owner: 'cpu2', cards: [{value: 66}]});          
+  const oldPlayedCards = new Map();
+  const playedCards = new Map([
+    ['p1', 55],
+    ['p2', 42],
+    ['p3', 57]
+  ]);
+  const cardMat = [
+    [99],
+    [99],
+    [99],
+    [99]
+  ];
+  const nextAction = {type: 'PLAY_CARDS'}
+  const {nextAction: actualNextAction} =
+    whotakes6.playCards({hands, players, cardMat, playedCards: oldPlayedCards, nextAction}, playedCards);
+
+  expect(actualNextAction).toEqual({
+    type: 'SELECT_STACK',
+    player: 'p2'
+  });
+});
+
+test('play cards with continue dispatch', () => {
+  const players = ['p1', 'p2', 'p3'];
+  const hands = new Map([
+    ['p1', [55, 44]],
+    ['p2', [56, 42]],
+    ['p3', [66, 57]]
+  ]);
+  const oldPlayedCards = new Map();
+  const playedCards = new Map([
+    ['p1', 55],
+    ['p2', 42],
+    ['p3', 57]
+  ]);
+  const cardMat = [
+    [1],
+    [2],
+    [3],
+    [4]
+  ];
+  const nextAction = {type: 'PLAY_CARDS'}
+
+  const {playedCards: actualPlayedCards, hands: actualHands, nextAction: actualNextAction} =
+    whotakes6.playCards({hands, players, cardMat, playedCards: oldPlayedCards, nextAction}, playedCards);
+
+  expect(actualPlayedCards).toEqual(playedCards);
+  expect(actualHands).toEqual(new Map([
+    ['p1', [44]],
+    ['p2', [56]],
+    ['p3', [66]]
+  ]));
+  expect(actualNextAction).toEqual({
+    type: 'CONTINUE_DISPATCH',
+    player: 'p2'
+  });
 });
