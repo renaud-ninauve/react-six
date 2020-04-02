@@ -1,4 +1,4 @@
-const CARD_COWS = Array(35).fill(1);
+export const CARD_COWS = Array(35).fill(1);
 CARD_COWS[5] = 2;
 CARD_COWS[10] = 3;
 CARD_COWS[11] = 5;
@@ -26,8 +26,9 @@ export function start(players) {
 }
 
 export function shuffleCards() {
-  let cards = Array(CARDS_COUNT).fill().map((_, i) => i+1).map(createCardFromValue);
-  return shuffle(cards);
+  let cards = Array(CARDS_COUNT).fill().map((_, i) => i+1);
+  shuffle(cards);
+  return cards;
 
   function shuffle(arr) {
     for(let i = arr.length - 1; i > 0; i--){
@@ -40,10 +41,10 @@ export function shuffleCards() {
 }
 
 export function distributeCards(state, shuffledCards) {
-  const {players, nextAction} = state;
+  const {players} = state;
 
-  const hands = players.reduce(
-    (acc, p, i) => {acc.set(p, shuffledCards.slice(i, i+CARDS_PER_HAND)); return acc;}, new Map());
+  const hands = new Map(players.map(
+    (p, i) => [p, shuffledCards.slice(i*CARDS_PER_HAND, i*CARDS_PER_HAND+CARDS_PER_HAND)]));
 
   let cardMat = shuffledCards.slice(players.length*CARDS_PER_HAND)
     .map(v => [v]);
@@ -56,15 +57,6 @@ export function distributeCards(state, shuffledCards) {
   };
 }
 
-export function chooseCpuCards({players, hands}) {
-  return toAssociativeArray(
-    players.map(p => {
-      const hand = hands[p];
-      const randomIndex = Math.floor(Math.random() * hand.length);
-      return keyValue(p, hand[randomIndex]);
-    }));
-}
-
 function playerWhoPlaysTheLowest(playedCards) {
   return Array.from(playedCards)
     .sort(([playerA, cardA], [playerB, cardB]) => cardA-cardB)[0][0];
@@ -75,21 +67,17 @@ function canAutoDispatch(cardMat, card) {
 }
 
 export function playCards(state, playedCards) {
-  const {players, hands, nextAction} = state;
+  const {hands, nextAction} = state;
 
   if (nextAction.type !== 'PLAY_CARDS') {
     return state;
   }
 
-  const newHands = new Map(Array.from(hands).map(keyValue => {
-    const player = keyValue[0];
-    const hand = keyValue[1];
-    const filter = playedCards.has(player)
-      ? card => card !== playedCards.get(player)
-      : card => true;
+  const cardValues = Array.from(playedCards).map(([player, card]) => card);
+  const newHands = new Map(Array.from(hands).map(([handsPlayer, handsCards]) => {
     return [
-      player,
-      hand.filter(filter)
+      handsPlayer,
+      handsCards.filter(card => !cardValues.includes(card))
     ];
   }));
 
@@ -129,18 +117,21 @@ export function continueDispatch(state) {
     cardMat
       .map((stack, index) => {return {index, value: stack[stack.length-1]}})
       .filter(({value}) => value<playedCard)
-      .sort(({value: valueA}, {value: valueB}) => valueB-valueA)
-      [O].index;
+      .sort(({value: valueA}, {value: valueB}) => valueB-valueA)[0].index;
 
   const newTargetStack = [...cardMat[targetStackIndex]];
-  const newCows = new Map(cows);
-  if (newTargetStack.length == 5) {
-    const addedCows = newTargetStack.reduce((acc, card) => acc + CARD_COWS[card], 0);
-    newCows.set(player, newCows.get(player) + addedCows);
-    newTargetStack.splice(0, newTargetStack.length, playedCard);
-  }
 
-  const newCardMat = [...cardMat].splice(targetStackIndex, 1, newTargetStack);
+  const newCows = new Map(cows);
+  if (newTargetStack.length === 5) {
+    const addedCows = newTargetStack
+      .reduce((acc, card) => acc + CARD_COWS[card], 0);
+    newCows.set(player, newCows.get(player) + addedCows);
+    newTargetStack.splice(0, newTargetStack.length);
+  }
+  newTargetStack.push(playedCard);
+
+  const newCardMat = [...cardMat];
+  newCardMat.splice(targetStackIndex, 1, newTargetStack);
 
   const newPlayedCards = new Map(playedCards);
   newPlayedCards.delete(player);
@@ -167,7 +158,8 @@ export function selectStack(state, stackIndex) {
   const newPlayedCards = new Map(playedCards);
   newPlayedCards.delete(player);
 
-  const newCardMat = [...cardMat].splice(stackIndex, 1, [playedCard]);
+  const newCardMat = [...cardMat];
+  newCardMat.splice(stackIndex, 1, [playedCard]);
 
   const newCows = new Map(cows);
   const addedCows = cardMat[stackIndex].reduce((acc, card) => acc + CARD_COWS[card], 0);

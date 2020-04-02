@@ -1,4 +1,3 @@
-//import * as WhoTakes6 from "./whotakes6.mjs";
 const whotakes6 = require('./whotakes6');
 
 test('start', () => {

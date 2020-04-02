@@ -1,8 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
+import * as whotakes6 from "./whotakes6.js";
 
-function Card({value, cows, onClick=()=>{}}) {
+function Card({value, onClick=()=>{}}) {
+  const cows = whotakes6.CARD_COWS[value];
   return (
     <div className="card" onClick={onClick}>
       <div className="card-value">{value}</div>
@@ -13,7 +15,7 @@ function Card({value, cows, onClick=()=>{}}) {
 
 function PlayerDeck({cards, onClick=(i)=>{}}) {
   let cardComponents = cards.map(
-    (card, i) => (<Card value={card.value} cows={card.cows} key={i} onClick={() => onClick(i)}/>));
+    (card, i) => (<Card value={card} key={i} onClick={() => onClick(i)}/>));
   return (
     <div className="player-deck">
       {cardComponents}
@@ -23,7 +25,7 @@ function PlayerDeck({cards, onClick=(i)=>{}}) {
 
 function CardStack({cards, onClick=(i)=>{}}) {
   let cardComponents = cards.map(
-    (card, i) => (<Card value={card.value} cows={card.cows} key={i} onClick={() => onClick(i)}/>));
+    (card, i) => (<Card value={card} key={i} onClick={() => onClick(i)}/>));
 
   return (
     <div className="card-stack">
@@ -42,13 +44,13 @@ function CardMat({cardMat, onClick=(i)=>{}}) {
   );
 }
 
-function SelectedCards({selectedCards}) {
-  let components = selectedCards.map(
-    (selectedCard, i) =>
+function PlayedCards({playedCards}) {
+  let components = Array.from(playedCards).map(
+    ([player, card], i) =>
       (
         <div className="selected-card" key={i}>
-          <p>{selectedCard.actor}</p>
-          <Card value={selectedCard.card.value} cows={selectedCard.card.cows}/>
+          <p>{player}</p>
+          <Card value={card}/>
         </div>
       )
     );
@@ -59,21 +61,21 @@ function SelectedCards({selectedCards}) {
     );
 }
 
-function Scores({scores}) {  
+function Cows({cows}) {
   return (
     <div className="scores">
       <div>
       <div>
         <h2>player</h2>
-        <p>{scores.player}</p>
+        <p>{cows.get('human')}</p>
       </div>
       <div>
         <h2>cpu1</h2>
-        <p>{scores.cpu1}</p>
+        <p>{cows.get('cpu1')}</p>
       </div>
       <div>
         <h2>cpu2</h2>
-        <p>{scores.cpu2}</p>
+        <p>{cows.get('cpu2')}</p>
       </div>
       </div>
     </div>
@@ -83,186 +85,60 @@ function Scores({scores}) {
 class Game extends React.Component {
   constructor(props) {
     super(props);
-    this.state = {
-      player: props.distribution.player,
-      cpu1: props.distribution.cpu1,
-      cpu2: props.distribution.cpu2,
-      cardMat: props.distribution.cardMat,
-      selectedCards: [],
-      scores: { player: 0, cpu1: 0, cpu2: 0}
-    };
-  }
-  compareCards(a , b) {
-    if (a.value < b.value) {
-      return -1;
-    }
-    if (a.value > b.value) {
-      return 1;
-    }
-    return 0;
-  }
-  excludeIndex(excluded) {
-    return (e, i) => i !== excluded;
-  }
-  selectStack(index) {
-    console.log('selectStack ' + index);
-  }
-  selectCards(playerSelectedIndex) {
-    if (this.state.selectedCards.length > 0) {
-      return;
-    }
-    let cardsCount = this.state.player.length;
-    let cpu1Index = Math.floor(Math.random() * cardsCount);
-    let cpu2Index = Math.floor(Math.random() * cardsCount);
-    let selectedCards =
-    [
-        {
-          card: this.state.player[playerSelectedIndex],
-          actor: 'player'
-        },
-        {
-          card: this.state.cpu1[cpu1Index],
-          actor: 'cpu1'
-        },
-        {
-          card: this.state.cpu2[cpu2Index],
-          actor: 'cpu2'
-        }
-    ].sort((a, b) => this.compareCards(a.card, b.card));
+  
+    this.state = whotakes6.distributeCards(
+      whotakes6.start(['human', 'cpu1', 'cpu2']),
+      whotakes6.shuffleCards()
+    );
 
-    this.setState({
-      player: this.state.player.filter(this.excludeIndex(playerSelectedIndex)),
-      cpu1: this.state.cpu1.filter(this.excludeIndex(cpu1Index)),
-      cpu2: this.state.cpu2.filter(this.excludeIndex(cpu2Index)),
-      cardMat: this.state.cardMat,
-      selectedCards: selectedCards,
-      scores: this.state.scores
-    });
   }
+
+  selectCard(playerSelectedIndex) {
+    const hands = this.state.hands;
+    const cardsCount = hands.get('human').length;
+    const cpu1Index = Math.floor(Math.random() * cardsCount);
+    const cpu2Index = Math.floor(Math.random() * cardsCount);
+    const playedCards = new Map([
+      ['human', hands.get('human')[playerSelectedIndex]],
+      ['cpu1', hands.get('cpu1')[cpu1Index]],
+      ['cpu2', hands.get('cpu2')[cpu2Index]]
+    ]);
+
+    this.setState(whotakes6.playCards(this.state, playedCards));
+  }
+
   continueToDispatchSelectedCards() {
-    if (this.state.selectedCards.length === 0) {
-      return;
-    }
-    let scores = {...this.state.scores};
-    let selectedCard = this.state.selectedCards[0];
-    let cardMat = [...this.state.cardMat];
-    let targetStacks = cardMat
-      .filter(arr => arr[arr.length-1].value < selectedCard.card.value)
-      .sort((a, b) => this.compareCards(a[a.length-1], b[b.length-1]));
-    if (targetStacks.length > 0) {
-      let targetStack = targetStacks[targetStacks.length-1];
-      if (targetStack.length < 5) {
-        targetStack
-          .push(selectedCard.card);
-      } else {
-        let cows = targetStack
-          .reduce((acc, card) => acc+card.cows, 0);
-        scores[selectedCard.actor] = scores[selectedCard.actor] + cows;
-        targetStack
-          .splice(0, targetStack.length, selectedCard.card);
-      }
-      this.setState({
-        ...this.state,
-        selectedCards: this.state.selectedCards.slice(1),
-        cardMat,
-        scores});
-    } else if (selectedCard.actor !== 'player') {
-      let selectedStackIndex = Math.floor(Math.random() * 3);
-      let cows = this.state.cardMat[selectedStackIndex]
-        .reduce((acc, card) => acc+card.cows, 0);
-      scores[selectedCard.actor] = scores[selectedCard.actor] + cows;
-      let cardMat = [...this.state.cardMat];
-      cardMat[selectedStackIndex] = [selectedCard.card];
-      this.setState({
-        ...this.state,
-        selectedCards: this.state.selectedCards.slice(1),
-        cardMat,
-        scores
-      });
+    const {type: nextAction, player} = this.state.nextAction;
+    if (nextAction === 'SELECT_STACK' && player !== 'human') {
+      this.setState(whotakes6.selectStack(this.state, Math.floor(Math.random() * 3)));
+    } else {
+      this.setState(whotakes6.continueDispatch(this.state));
     }
   }
+
   selectStack(i) {
-    if (this.state.selectedCards.length <= 0 || this.state.selectedCards[0].actor !== 'player') {
-      return;
+    if (this.state.nextAction.type === 'SELECT_STACK' && this.state.nextAction.player === 'human') {
+      this.setState(whotakes6.selectStack(this.state, i));
     }
-    let selectedCard = this.state.selectedCards[0];
-    if (this.state.cardMat.some(arr => arr[arr.length-1].value < selectedCard.card.value)) {
-      return;
-    }
-    let scores = {...this.state.scores};
-    let cows = this.state.cardMat[i]
-      .reduce((acc, card) => acc+card.cows, 0);
-    scores[selectedCard.actor] = scores[selectedCard.actor] + cows;
-    let cardMat = [...this.state.cardMat];
-    cardMat[i] = [selectedCard.card];
-    this.setState({
-      ...this.state,
-      selectedCards: this.state.selectedCards.slice(1),
-      cardMat,
-      scores
-    });
   }
+
   render() {
-    let selectedCards = this.state.selectedCards.length > 0
-      ? (<SelectedCards selectedCards={this.state.selectedCards}/>) : '';
+    let playedCards = this.state.playedCards.size > 0
+      ? (<PlayedCards playedCards={this.state.playedCards}/>) : '';
     return (
         <div>
-          <Scores scores={this.state.scores}/>
+          <p>{this.state.nextAction.type} {this.state.nextAction.player || ''}</p>
+          <Cows cows={this.state.cows}/>
           <CardMat cardMat={this.state.cardMat} onClick={(i) => this.selectStack(i)}/>
-          <PlayerDeck cards={this.state.player} onClick={(i) => this.selectCards(i)}/>
-          {selectedCards}
+          <PlayerDeck cards={this.state.hands.get('human')} onClick={(i) => this.selectCard(i)}/>
+          {playedCards}
           <button onClick={()=>this.continueToDispatchSelectedCards()}>continue</button>
         </div>
     );
   }
 }
 
-// ========================================
-
-let valueCows = Array(35).fill(1);
-valueCows[5] = 2;
-valueCows[10] = 3;
-valueCows[11] = 5;
-valueCows[15] = 2;
-valueCows[20] = 3;
-valueCows[22] = 5;
-valueCows[25] = 2;
-valueCows[30] = 3;
-valueCows[33] = 5;
-
-function shuffle(arr) {
-  for(let i = arr.length - 1; i > 0; i--){
-    const j = Math.floor(Math.random() * i);
-    const temp = arr[i];
-    arr[i] = arr[j];
-    arr[j] = temp;
-  }
-}
-
-function createCardFromValue(value) {
-  return {value: value, cows: valueCows[value]};
-}
-
-function distribute() {
-  let cards = Array(34).fill().map((_, i) => i+1).map(createCardFromValue);
-  shuffle(cards);
-
-  let player = cards.slice(0, 10);
-  let cpu1 = cards.slice(10, 20);
-  let cpu2 = cards.slice(20, 30);
-  let cardMat = cards.slice(30).map((card, i) => [card]);
-
-  return {
-    player,
-    cpu1,
-    cpu2,
-    cardMat
-  };
-}
-
-console.log(distribute());
-
 ReactDOM.render(
-  <Game distribution={distribute()}/>,
+  <Game />,
   document.getElementById('root')
 );
