@@ -2,6 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
 import * as whotakes6 from "./whotakes6.js";
+import { createStore } from 'redux';
+import { connect, Provider } from 'react-redux'
 
 function Card({value, onClick=()=>{}}) {
   const cows = whotakes6.CARD_COWS[value];
@@ -85,16 +87,11 @@ function Cows({cows}) {
 class Game extends React.Component {
   constructor(props) {
     super(props);
-  
-    this.state = whotakes6.distributeCards(
-      whotakes6.start(['human', 'cpu1', 'cpu2']),
-      whotakes6.shuffleCards()
-    );
-
+    this.props.dispatch({type: 'DISTRIBUTE_CARDS', value: whotakes6.shuffleCards()});
   }
 
   selectCard(playerSelectedIndex) {
-    const hands = this.state.hands;
+    const hands = this.props.hands;
     const cardsCount = hands.get('human').length;
     const cpu1Index = Math.floor(Math.random() * cardsCount);
     const cpu2Index = Math.floor(Math.random() * cardsCount);
@@ -104,33 +101,33 @@ class Game extends React.Component {
       ['cpu2', hands.get('cpu2')[cpu2Index]]
     ]);
 
-    this.setState(whotakes6.playCards(this.state, playedCards));
+    this.props.dispatch({type: 'PLAY_CARDS', value: playedCards});
   }
 
   continueToDispatchSelectedCards() {
-    const {type: nextAction, player} = this.state.nextAction;
+    const {type: nextAction, player} = this.props.nextAction;
     if (nextAction === 'SELECT_STACK' && player !== 'human') {
-      this.setState(whotakes6.selectStack(this.state, Math.floor(Math.random() * 3)));
+      this.props.dispatch({type: 'SELECT_STACK', value: Math.floor(Math.random() * 3)});
     } else {
-      this.setState(whotakes6.continueDispatch(this.state));
+      this.props.dispatch({type: 'CONTINUE_DISPATCH'});
     }
   }
 
   selectStack(i) {
-    if (this.state.nextAction.type === 'SELECT_STACK' && this.state.nextAction.player === 'human') {
-      this.setState(whotakes6.selectStack(this.state, i));
+    if (this.props.nextAction.type === 'SELECT_STACK' && this.props.nextAction.player === 'human') {
+      this.props.dispatch({type: 'SELECT_STACK', value: i});
     }
   }
 
   render() {
-    let playedCards = this.state.playedCards.size > 0
-      ? (<PlayedCards playedCards={this.state.playedCards}/>) : '';
+    let playedCards = this.props.playedCards.size > 0
+      ? (<PlayedCards playedCards={this.props.playedCards}/>) : '';
     return (
         <div>
-          <p>{this.state.nextAction.type} {this.state.nextAction.player || ''}</p>
-          <Cows cows={this.state.cows}/>
-          <CardMat cardMat={this.state.cardMat} onClick={(i) => this.selectStack(i)}/>
-          <PlayerDeck cards={this.state.hands.get('human')} onClick={(i) => this.selectCard(i)}/>
+          <p>{this.props.nextAction.type} {this.props.nextAction.player || ''}</p>
+          <Cows cows={this.props.cows}/>
+          <CardMat cardMat={this.props.cardMat} onClick={(i) => this.selectStack(i)}/>
+          <PlayerDeck cards={this.props.hands.get('human')} onClick={(i) => this.selectCard(i)}/>
           {playedCards}
           <button onClick={()=>this.continueToDispatchSelectedCards()}>continue</button>
         </div>
@@ -138,7 +135,39 @@ class Game extends React.Component {
   }
 }
 
+
+const mapStateToProps = state => ({
+  ...state
+});
+
+const mapDispatchToProps = dispatch => ({
+  dispatch: action => dispatch(action)
+});
+
+const ReduxGame = connect(mapStateToProps, mapDispatchToProps)(Game);
+
+const reducer = (state, action) => {
+
+  if (state === undefined) {
+    return whotakes6.start(['human', 'cpu1', 'cpu2']);
+  }
+  switch (action.type) {
+    case 'DISTRIBUTE_CARDS':
+      return whotakes6.distributeCards(state, action.value);
+    case 'PLAY_CARDS':
+      return whotakes6.playCards(state, action.value);
+    case 'SELECT_STACK':
+      return whotakes6.selectStack(state, action.value);
+    case 'CONTINUE_DISPATCH':
+      return whotakes6.continueDispatch(state);
+    default:
+      return state
+  }
+};
+
+const store = createStore(reducer);
+
 ReactDOM.render(
-  <Game />,
+  <Provider store={store}><ReduxGame /></Provider>,
   document.getElementById('root')
 );
